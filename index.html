@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" lang="fr">
+
+<head>
+   <meta charset="UTF-8" />
+   <title>Miam : mangez des fruits !</title>
+   <meta name="author" content="your name" />
+
+   <link rel="stylesheet" type="text/css" href="./style/style.css" />
+</head>
+
+<body>
+   <h2>Miam : mangez des fruits !</h2>
+   
+   <p>Mangez les fruits pour marquer des points, attention aux <i>hungries</i> qui mangent les fruits... ou vous... et se multiplient quand ils ont suffisamment mangé.</p>
+
+   <div id="game">
+      <div id="info">
+         <div id="scoreZone">
+            <div id="score"> 0 </div>pts
+         </div>
+         
+         <div id="lifes">
+            <img src="images/greedy64.png" alt="" id="life-1" />
+            <img src="images/greedy64.png" alt="" id="life-2" />
+            <img src="images/greedy64.png" alt="" id="life-3" />
+         </div>
+
+         <div id="control">
+            <button onclick="togglePlay()" id="stopAndStartGame">Jouer</button>
+         </div>
+      </div>
+      <div id="field">
+         <div id="cover">
+         <canvas id="playfield" width="800" height="450" tabindex="1"></canvas>
+      </div>   
+      </div>
+   </div>
+
+
+   <img src="scripts/assets/images/hungry.png" style="display: none;" id="hungry" />
+   <img src="scripts/assets/images/pomme.png" style="display: none;" id="pomme" />
+   <img src="scripts/assets/images/citron.png" style="display: none;" id="citron" />
+   <img src="scripts/assets/images/ananas.png" style="display: none;" id="ananas" />
+
+</body>
+<script type="module">
+   import GreedyClass from './Greedy.js'
+   Greedy = GreedyClass
+
+   import FruitClass from './Fruit.js'
+   Fruit = FruitClass
+
+   import HungryClass from './Hungry.js'
+   Hungry = HungryClass
+</script>
+<script>
+
+   // canvas variables
+   let canvas;
+   let ctx;
+
+   // variables
+   let player;
+   let playerMovementDirectionVelocity = {x: 0, y: 0}
+   let hungrys = []
+   let fruits = []
+   let lives = 3
+   let foodSpawnRate = 1.5 //seconds. Divides by amount of hungryes alive 
+   let isRunning = false;
+
+   // constants
+   const playerSpeed = 3
+   const hungrySpeed = 2
+   const maxFruitAtaTime = 5
+   const maxHungrys = 3
+
+   // class definition
+   let Greedy;
+   let Fruit;
+   let Hungry;
+
+   
+
+   const init = () => {
+      canvas = document.getElementById('playfield')
+      ctx = canvas.getContext('2d')
+
+      if(!player)
+      {
+         player = new Greedy(canvas.clientWidth/2,canvas.clientHeight/2,playerSpeed, 0)
+      }
+
+
+      // spawnFruit()
+      spawnFruitAtInterval()
+      if(hungrys.length == 0)
+      {
+         spawnHungry()
+      }
+
+      update()
+   }
+
+   const update = () => {
+      if(isRunning == false) {return}
+
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      player.posX += playerMovementDirectionVelocity.x * player.speed
+      player.posY += playerMovementDirectionVelocity.y * player.speed
+
+      player.posX += playerMovementDirectionVelocity.x * player.speed
+      player.posY += playerMovementDirectionVelocity.y * player.speed
+      
+      player.draw()
+
+      fruits.forEach((f, i) => {
+         if(f.posX - player.posX < 50 && f.posX - player.posX > -50)
+         {
+            if(f.posY - player.posY < 50 && f.posY - player.posY > -50)
+            {
+               fruits.splice(i, 1)
+               player.points += 100
+               document.getElementById('score').innerHTML = player.points
+            }
+         }
+      })
+
+      hungrys.forEach((h, i)=> {
+         h.draw()
+
+         if(player.posX - h.posX < 50 && player.posX - h.posX > -50)
+         {
+            if(player.posY - h.posY < 50 && player.posY - h.posY > -50)
+            {
+               console.log('touch hungry')
+               hungrys.splice(i, 1)
+               try{
+
+                  document.getElementById('life-' + lives).style.display = 'none'
+                  spawnHungry()
+                  
+               }catch{
+
+               }
+               lives -= 1
+               if(lives == 0){
+                  alert('Votre Perdu')
+                  isRunning = false
+               }
+            }
+         }
+
+         if(h.targetFruit == 'none')
+         {
+            const randomFruit = randomWholeNumber(0, fruits.length - 1)
+            h.targetFruit = randomFruit
+         }else{
+            // console.log(h.targetFruit)
+            if(fruits.length > 0)
+            {
+               try{
+
+                  if(fruits[h.targetFruit].posX - h.posX > 0)
+                  {
+                     h.posX += 1 * h.speed
+                  }
+                  if(fruits[h.targetFruit].posX - h.posX <= 0)
+                  {
+                     h.posX += -1 * h.speed
+                  }
+                  if(fruits[h.targetFruit].posY - h.posY > 0)
+                  {
+                     h.posY += 1 * h.speed
+                  }
+                  if(fruits[h.targetFruit].posY - h.posY <= 0)
+                  {
+                     h.posY += -1 * h.speed
+                  }
+      
+      
+                  if(fruits[h.targetFruit].posX - h.posX < 10 && fruits[h.targetFruit].posX - h.posX > -10)
+                  {
+                     if(fruits[h.targetFruit].posY - h.posY < 10 && fruits[h.targetFruit].posY - h.posY > -10)
+                     {
+                        fruits.splice(h.targetFruit, 1)
+                        h.points += 100
+                        h.targetFruit = 'none'
+                        if(h.points == 700)
+                        {
+                           h.points = 0
+                           if(hungrys.length != maxHungrys)
+                           {
+                              spawnHungry()
+                              foodSpawnRate = foodSpawnRate/hungrys.length
+                           }
+                        }
+                     }
+                  }
+               }catch{
+
+               }
+            }else{
+               h.targetFruit = 'none'
+            }
+         }
+
+      })
+
+      fruits.forEach((f)=> {
+         f.draw()
+      })
+
+      requestAnimationFrame(update)
+   }
+
+   function randomWholeNumber(start, end) {
+    return Math.floor(Math.random() * (end - start + 1)) + start;
+}
+
+   const spawnFruitAtInterval = () => {
+      if(fruits.length != maxFruitAtaTime)
+      {
+         spawnFruit()
+      }
+      setTimeout(() => {
+         if(isRunning == true)
+         {
+            spawnFruitAtInterval()
+         }
+      }, foodSpawnRate * 1000);
+   }
+
+   const togglePlay = () => {
+      if(isRunning == true)
+      {
+         document.getElementById('stopAndStartGame').innerHTML = 'Jouer'
+         isRunning = false
+      }else{
+         document.getElementById('stopAndStartGame').innerHTML = 'Stop'
+         isRunning = true
+         init()
+      }
+   }
+
+   const spawnFruit = () => {
+      const x = randomWholeNumber(10, canvas.clientWidth - 50)
+      const y = randomWholeNumber(10, canvas.clientHeight - 50)
+      const fruit = randomWholeNumber(0,2)
+      const fruitsList = ['pomme', 'citron', 'ananas']
+
+      fruits.push(new Fruit(x,y,fruitsList[fruit], false) )
+   }
+   const spawnHungry = () => {
+      const x = randomWholeNumber(10, canvas.clientWidth - 10)
+      const y = randomWholeNumber(10, canvas.clientHeight - 50)
+
+      hungrys.push(new Hungry(x,y,hungrySpeed,0,'none'))
+   }
+
+
+   function events()
+    {
+        addEventListener('keydown', (e) => {
+            // console.log(e)
+            const key = e.key
+            // console.log(key)
+            if(key == 'ArrowRight' || key == 'd')
+            {
+               playerMovementDirectionVelocity.x = 1
+            }
+            if(key == 'ArrowLeft' || key == 'a')
+            {
+                playerMovementDirectionVelocity.x = -1
+            }
+            if(key == 'ArrowUp' || key == 'w')
+            {
+               playerMovementDirectionVelocity.y = -1
+            }
+            if(key == 'ArrowDown' || key == 's')
+            {
+                playerMovementDirectionVelocity.y = 1
+            }
+        })
+
+        addEventListener('keyup', (e) => {
+            const key = e.key
+            if(key == 'ArrowRight' || key == 'd')
+            {
+               if(playerMovementDirectionVelocity.x != -1)
+               {
+                  playerMovementDirectionVelocity.x = 0
+               }
+            }
+            if(key == 'ArrowLeft' || key == 'a')
+            {
+               if(playerMovementDirectionVelocity.x != 1)
+               {
+                  playerMovementDirectionVelocity.x = 0
+               }
+            }
+            if(key == 'ArrowUp' || key == 'w')
+            {
+               if(playerMovementDirectionVelocity.y != 1)
+               {
+                  playerMovementDirectionVelocity.y = 0
+               }
+            }
+            if(key == 'ArrowDown' || key == 's')
+            {
+               if(playerMovementDirectionVelocity.y != -1)
+               {
+                  playerMovementDirectionVelocity.y = 0
+               }
+            }
+        })
+    }
+    events()
+
+
+</script>
+
+</html>
